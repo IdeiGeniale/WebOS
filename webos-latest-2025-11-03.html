@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Web OS Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: sans-serif; background: #1e1e2e; }
+    #desktop { position: absolute; top: 0; bottom: 40px; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; background: url('https://wallpapercave.com/wp/wp4538341.jpg') no-repeat center center/cover; }
+    .icon { width: 80px; text-align: center; color: white; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 10px; cursor: pointer; }
+    .icon:hover { background: rgba(0,0,0,0.7); }
+    #taskbar { position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: rgba(20,20,20,0.8); display: flex; align-items: center; justify-content: space-between; padding: 0 10px; }
+    #start-button { background: #0078D7; color: white; padding: 0 10px; height: 100%; display: flex; align-items: center; cursor: pointer; font-weight: bold; }
+    #taskbar-apps { display: flex; gap: 10px; overflow-x: auto; }
+    #taskbar-apps div { padding: 0 10px; color: white; cursor: pointer; }
+    #clock { color: white; font-weight: bold; }
+    .window { 
+      position: absolute; 
+      background: white; 
+      border: 2px solid black; 
+      width: 300px; 
+      height: 300px; 
+      display: none; 
+      flex-direction: column; 
+      z-index: 10; 
+      resize: both; 
+      overflow: auto;
+      min-width: 200px;
+      min-height: 200px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .window.calculator { 
+      width: 350px;
+      height: 400px;
+    }
+    .window-header { 
+      background: #333; 
+      color: white; 
+      padding: 5px; 
+      display: flex; 
+      justify-content: space-between; 
+      cursor: move; 
+      user-select: none;
+    }
+    .window-body { 
+      flex-grow: 1; 
+      background: #f0f0f0; 
+      overflow: auto; 
+      display: flex; 
+      flex-direction: column; 
+      padding: 10px; 
+    }
+    #imagePreview img, #videoPreview video { max-width: 100px; margin: 10px; border: 2px solid #ccc; }
+    .window button { cursor: pointer; padding: 2px 8px; margin-left: 5px; }
+    #fileList ul { list-style: none; padding: 0; }
+    #fileList li { padding: 5px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; }
+    
+    /* Login screen styles */
+    #login-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #login-form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+    }
+    #login-form input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      box-sizing: border-box;
+    }
+    #login-form button {
+      background: #0078D7;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 5px;
+      width: 100%;
+    }
+    #login-form button:hover {
+      background: #005fa3;
+    }
+    #login-error {
+      color: red;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* Calendar styles */
+    #calendarGrid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+    #calendarGrid div {
+      text-align: center;
+      padding: 5px;
+      border-radius: 3px;
+    }
+    #calendarEvents {
+      margin-top: 10px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+
+    /* To-Do styles */
+    #taskList {
+      list-style: none;
+      padding: 0;
+      flex: 1;
+      overflow: auto;
+    }
+    #taskList li {
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+    }
+    #taskList input[type="checkbox"] {
+      margin-right: 10px;
+    }
+
+    /* Drawing app styles */
+    #drawingCanvas {
+      touch-action: none;
+      background: white;
+    }
+
+    /* Start Menu Styles */
+    #start-menu {
+      position: absolute;
+      bottom: 40px;
+      left: 0;
+      width: 300px;
+      background: rgba(30, 30, 46, 0.95);
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      display: none;
+      flex-direction: column;
+      z-index: 100;
+      color: white;
+      overflow: hidden;
+    }
+    #start-menu-header {
+      padding: 10px;
+      background: rgba(0, 120, 215, 0.8);
+      font-weight: bold;
+    }
+    #start-menu-apps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 10px;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+    .start-menu-app {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .start-menu-app:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .start-menu-app-icon {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    .start-menu-app-name {
+      font-size: 12px;
+    }
+    #start-menu-footer {
+      padding: 10px;
+      background: rgba(20, 20, 20, 0.8);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Taskbar app indicator */
+    .taskbar-app {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+    }
+    .taskbar-app.active {
+      background: rgba(0, 120, 215, 0.5);
+    }
+    .taskbar-app:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <div id="login-form">
+      <h2>Web OS Login</h2>
+      <input type="text" id="username" placeholder="User ID" required>
+      <input type="password" id="password" placeholder="Access Token" required>
+      <button id="login-button">Login</button>
+      <div id="login-error">Invalid User ID or Access Token</div>
+    </div>
+  </div>
+
+  <!-- Main OS Content (hidden until login) -->
+  <div id="os-content" style="display: none;">
+    <div id="desktop">
+      <div class="icon" onclick="openApp(\'email\')">📧<br>Email</div>
+      <div class="icon" onclick="openApp('browser')">🌐<br>Browser</div>
+      <div class="icon" onclick="openApp('notepad')">📝<br>Notepad</div>
+      <div class="icon" onclick="openApp('fileeditor')">✏️<br>Editor</div>
+      <div class="icon" onclick="openApp('calculator')">🧮<br>Calculator</div>
+      <div class="icon" onclick="openApp('terminal')">>_<br>Terminal</div>
+      <div class="icon" onclick="openApp('filemanager')">🗂️<br>Files</div>
+      <div class="icon" onclick="openApp('settings')">⚙️<br>Settings</div>
+      <div class="icon" onclick="openApp('music')">🎵<br>Music</div>
+      <div class="icon" onclick="openApp('mediaviewer')">🖼️<br>Media</div>
+      <div class="icon" onclick="openApp('games')">🎮<br>Games</div>
+      <div class="icon" onclick="openApp('todo')">✅<br>To-Do</div>
+      <div class="icon" onclick="openApp('calendar')">📅<br>Calendar</div>
+      <div class="icon" onclick="openApp('drawing')">🎨<br>Drawing</div>
+    </div>
+    <div id="taskbar">
+      <div id="start-button" onclick="toggleStartMenu()">Start</div>
+      <div id="taskbar-apps"></div>
+      <div id="clock"></div>
+    </div>
+
+    <!-- Start Menu -->
+    <div id="start-menu">
+      <div id="start-menu-header">Applications</div>
+      <div id="start-menu-apps">
+        <div class="start-menu-app" onclick="openAppFromStartMenu('email')">
+          <div class="start-menu-app-icon">📧</div>
+          <div class="start-menu-app-name">Email</div>
+        </div>
+
+        <div class="start-menu-app" onclick="openAppFromStartMenu('browser')">
+          <div class="start-menu-app-icon">🌐</div>
+          <div class="start-menu-app-name">Browser</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('notepad')">
+          <div class="start-menu-app-icon">📝</div>
+          <div class="start-menu-app-name">Notepad</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('fileeditor')">
+          <div class="start-menu-app-icon">✏️</div>
+          <div class="start-menu-app-name">Editor</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('calculator')">
+          <div class="start-menu-app-icon">🧮</div>
+          <div class="start-menu-app-name">Calculator</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('terminal')">
+          <div class="start-menu-app-icon">>_</div>
+          <div class="start-menu-app-name">Terminal</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('filemanager')">
+          <div class="start-menu-app-icon">🗂️</div>
+          <div class="start-menu-app-name">Files</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('settings')">
+          <div class="start-menu-app-icon">⚙️</div>
+          <div class="start-menu-app-name">Settings</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('music')">
+          <div class="start-menu-app-icon">🎵</div>
+          <div class="start-menu-app-name">Music</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('mediaviewer')">
+          <div class="start-menu-app-icon">🖼️</div>
+          <div class="start-menu-app-name">Media</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('games')">
+          <div class="start-menu-app-icon">🎮</div>
+          <div class="start-menu-app-name">Games</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('todo')">
+          <div class="start-menu-app-icon">✅</div>
+          <div class="start-menu-app-name">To-Do</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('calendar')">
+          <div class="start-menu-app-icon">📅</div>
+          <div class="start-menu-app-name">Calendar</div>
+        </div>
+        <div class="start-menu-app" onclick="openAppFromStartMenu('drawing')">
+          <div class="start-menu-app-icon">🎨</div>
+          <div class="start-menu-app-name">Drawing</div>
+      </div>
+      <div id="start-menu-footer">
+        <div id="current-user"></div>
+        <button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer;">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // User accounts with secure password storage
+    const users = {
+      "user2": { password: "user2pass", bgColor: "#339af0" },
+      "user": { password: "letmein", bgColor: "#51cf66" },
+      "guest": { password: "guest", bgColor: "#868e96" }
+    };
+
+    // Background color options
+    const backgroundColors = {
+      "red": "#ff6b6b",
+      "green": "#51cf66",
+      "blue": "#339af0",
+      "white": "#ffffff",
+      "yellow": "#ffd43b",
+      "gray": "#868e96",
+      "purple": "#9c36b5"
+    };
+
+    // DOM elements
+    const loginScreen = document.getElementById('login-screen');
+    const loginForm = document.getElementById('login-form');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginButton = document.getElementById('login-button');
+    const loginError = document.getElementById('login-error');
+    const osContent = document.getElementById('os-content');
+    const startMenu = document.getElementById('start-menu');
+    const currentUserElement = document.getElementById('current-user');
+    const taskbarApps = document.getElementById('taskbar-apps');
+
+    // Track open apps
+    const openApps = new Set();
+
+    // Check if user is already logged in
+    if (localStorage.getItem('loggedIn')) {
+      const savedUsername = localStorage.getItem('username');
+      if (users[savedUsername]) {
+        loginScreen.style.display = 'none';
+        osContent.style.display = 'block';
+        applySavedBackground();
+        currentUserElement.textContent = savedUsername;
+      }
+    }
+
+    // Login function with enhanced validation
+    function handleLogin() {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      
+      // Reset error state
+      loginError.style.display = 'none';
+      
+      // Validate credentials
+      if (users[username] && users[username].password === password) {
+        // Successful login
+        localStorage.setItem('loggedIn', 'true');
+        localStorage.setItem('username', username);
+        
+        // Set default background if none exists
+        if (!localStorage.getItem('background-color')) {
+          localStorage.setItem('background-color', users[username].bgColor);
+        }
+        
+        loginScreen.style.display = 'none';
+        osContent.style.display = 'block';
+        applySavedBackground();
+        currentUserElement.textContent = username;
+      } else {
+        // Failed login
+        loginError.style.display = 'block';
+        passwordInput.value = ''; // Clear password field
+        passwordInput.focus(); // Refocus on password field
+      }
+    }
+
+    // Logout function
+    function logout() {
+      localStorage.removeItem('loggedIn');
+      localStorage.removeItem('username');
+      location.reload();
+    }
+
+    // Event listeners for login
+    loginButton.addEventListener('click', handleLogin);
+    
+    // Allow login on Enter key
+    passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleLogin();
+      }
+    });
+
+    function applySavedBackground() {
+      const bgColor = localStorage.getItem('background-color');
+      if (bgColor) {
+        document.getElementById('desktop').style.background = bgColor;
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+    
+    // Toggle start menu visibility
+    function toggleStartMenu() {
+      if (startMenu.style.display === 'flex') {
+        startMenu.style.display = 'none';
+      } else {
+        startMenu.style.display = 'flex';
+      }
+    }
+
+    // Close start menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!startMenu.contains(e.target) && e.target.id !== 'start-button') {
+        startMenu.style.display = 'none';
+      }
+    });
+
+    // Open app from start menu
+    function openAppFromStartMenu(id) {
+      openApp(id);
+      startMenu.style.display = 'none';
+    }
+    
+    const apps = {
+            email: `<div class='window' id='email'>
+                  <div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>
+                    Email <button onclick='closeApp("email")'>X</button>
+                  </div>
+                  <div class='window-body' style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;gap:5px;margin-bottom:5px;">
+                      <button onclick="showCompose()">✉️ Compose</button>
+                      <button onclick="showInbox()">📥 Inbox</button>
+                      <button onclick="showSent()">📤 Sent</button>
+                    </div>
+
+                    <div id="email-compose" style="display:none;flex-direction:column;gap:6px;">
+                      <input id="emailTo" type="email" placeholder="To: example@gmail.com" style="width:100%;padding:6px;" />
+                      <input id="emailSubject" type="text" placeholder="Subject" style="width:100%;padding:6px;" />
+                      <textarea id="emailMessage" placeholder="Write your message..." style="flex:1;resize:none;width:100%;height:140px;padding:6px;"></textarea>
+                      <div style="display:flex;gap:8px;">
+                        <button onclick="sendEmail()">Send</button>
+                        <button onclick="saveDraft()">Save Draft</button>
+                      </div>
+                      <div id="emailStatus" style="margin-top:6px;font-size:12px;color:#555;"></div>
+                    </div>
+
+                    <div id="email-inbox" style="display:none;">
+                      <h3>Inbox</h3>
+                      <ul id="inboxList" style="list-style:none;padding:0;margin:0;"></ul>
+                    </div>
+
+                    <div id="email-sent" style="display:none;">
+                      <h3>Sent</h3>
+                      <ul id="sentList" style="list-style:none;padding:0;margin:0;"></ul>
+                    </div>
+
+                    <div id="email-drafts" style="display:none;">
+                      <h3>Drafts</h3>
+                      <ul id="draftsList" style="list-style:none;padding:0;margin:0;"></ul>
+                    </div>
+
+                  </div>
+                </div>`,
+browser: `<div class='window' id='browser'>
+                  <div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>
+                    Browser <button onclick='closeApp("browser")'>X</button>
+                  </div>
+                  <div class='window-body'>
+                    <div style="display:flex;gap:5px;margin-bottom:5px;">
+                      <button onclick='goBack()' title="Back">←</button>
+                      <button onclick='goForward()' title="Forward">→</button>
+                      <button onclick='refreshPage()' title="Refresh">↻</button>
+                      <input id='urlInput' placeholder='Enter URL' style="flex:1;" 
+                             onkeydown='if(event.key==="Enter") loadBrowserPage()'>
+                      <button onclick='loadBrowserPage()'>Go</button>
+                      <button onclick='openInNewTab()' title="Open in new tab">↗</button>
+                    </div>
+                    <iframe id='browserFrame' sandbox="allow-scripts allow-same-origin allow-forms" 
+                            style='flex:1; border:none; background:white;'></iframe>
+                    <div id='browserStatus' style="font-size:12px;color:#666;"></div>
+                  </div>
+                </div>`,
+      notepad: `<div class='window' id='notepad'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>Notepad <button onclick='closeApp("notepad")'>X</button></div><div class='window-body'><textarea id='noteArea' style='flex:1; resize:none;'></textarea><button onclick='saveNote()'>Save Note</button></div></div>`,
+      fileeditor: `<div class='window' id='fileeditor'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>File Editor <button onclick='closeApp("fileeditor")'>X</button></div><div class='window-body'><textarea id='fileEditArea' placeholder='Edit text here...' style='flex:1; resize:none;'></textarea><input type='text' id='fileEditName' placeholder='Filename' /><button onclick='saveFile()'>Save File</button></div></div>`,
+      filemanager: `<div class='window' id='filemanager'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>File Manager <button onclick='closeApp("filemanager")'>X</button></div><div class='window-body' id='fileList'></div></div>`,
+      calculator: `<div class='window calculator' id='calculator'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>Calculator <button onclick='closeApp("calculator")'>X</button></div><div class='window-body'><iframe src='https://www.desmos.com/scientific' style='flex:1; border:none;'></iframe></div></div>`,
+      terminal: `<div class='window' id='terminal'>
+  <div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>
+    Terminal <button onclick='closeApp("terminal")'>X</button>
+  </div>
+  <div class='window-body' id='terminal-body' style='flex-direction: column;'>
+    <div id='terminal-output' style='flex:1; overflow-y:auto; white-space:pre-wrap; font-family: monospace; background:#000; color:#0f0; padding:5px;'>Web OS Terminal</div>
+    <input id='terminal-input' type='text' placeholder='Type a command...' 
+           style='width:100%;padding:5px;box-sizing:border-box;font-family:monospace; background:#111; color:#0f0; border:none; outline:none;'
+           onkeydown='handleTerminalCommand(event)'>
+  </div>
+</div>`,
+      settings: `<div class='window' id='settings'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>Settings <button onclick='closeApp("settings")'>X</button></div><div class='window-body'><label>Volume:<input type='range' id='volumeRange' min='0' max='1' step='0.01' onchange='setVolume(this.value)'></label><button onclick='playTestSound()'>Test Sound</button><hr><h3>Background Color</h3><div style='display: flex; gap: 10px; flex-wrap: wrap;'>${Object.entries(backgroundColors).map(([name, color]) => `<div style='background: ${color}; width: 50px; height: 50px; cursor: pointer; border: 2px solid #333;' onclick='changeBackground("${name}")' title='${name}'></div>`).join('')}</div></div></div>`,
+      music: `<div class='window' id='music'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>Music Player <button onclick='closeApp("music")'>X</button></div><div class='window-body'><input type='file' accept='audio/mp3/m4a/opus' onchange='playSelectedMusic(event)' /><audio id='musicPlayer' controls style='margin-top:10px;'></audio></div></div>`,
+      mediaviewer: `<div class='window' id='mediaviewer'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>Media Viewer <button onclick='closeApp("mediaviewer")'>X</button></div><div class='window-body'><input type='file' multiple accept='image/jpg/png,video/mp4/avi,video/x-msvideo' onchange='previewMedia(event)'><h3>Images</h3><div id='imagePreview'></div><hr><h3>Videos</h3><div id='videoPreview'></div></div></div>`,
+      games: `<div class='window' id='games'><div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>Games <button onclick='closeApp("games")'>X</button></div><div class='window-body'><ul><li><a href='https://flappybird.io' target='_blank'>Flappy Bird</a></li><li><a href='https://www.solitr.com' target='_blank'>Solitaire</a></li><li><a href='https://tetris.com/play-tetris' target='_blank'>Tetris</a></li><li><a href='https://elgoog.im/breakout/' target='_blank'>Breakout</a></li></ul><p><em>More coming soon...</em></p></div></div>`,
+      todo: `<div class='window' id='todo'>
+              <div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>
+                To-Do List <button onclick='closeApp("todo")'>X</button>
+              </div>
+              <div class='window-body'>
+                <div style="display:flex;gap:5px;margin-bottom:10px;">
+                  <input type="text" id="newTask" placeholder="New task..." style="flex:1;">
+                  <button onclick="addTask()">Add</button>
+                </div>
+                <ul id="taskList" style="list-style:none;padding:0;flex:1;overflow:auto;"></ul>
+              </div>
+            </div>`,
+      calendar: `<div class='window' id='calendar'>
+                  <div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>
+                    Calendar <button onclick='closeApp("calendar")'>X</button>
+                  </div>
+                  <div class='window-body'>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                      <button onclick="changeMonth(-1)">◀</button>
+                      <h3 id="currentMonth" style="margin:0;text-align:center;"></h3>
+                      <button onclick="changeMonth(1)">▶</button>
+                    </div>
+                    <div id="calendarGrid" style="display:grid;grid-template-columns:repeat(7, 1fr);gap:5px;"></div>
+                    <div id="calendarEvents" style="margin-top:10px;border-top:1px solid #ccc;padding-top:10px;"></div>
+                  </div>
+                </div>`,
+      drawing: `<div class='window' id='drawing'>
+                  <div class='window-header' onmousedown='dragWindow(event, this.parentElement)'>
+                    Drawing App <button onclick='closeApp("drawing")'>X</button>
+                  </div>
+                  <div class='window-body'>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;">
+                      <button onclick="setDrawingColor('black')" style="background: black; color: white;">Black</button>
+                      <button onclick="setDrawingColor('red')" style="background: red; color: white;">Red</button>
+                      <button onclick="setDrawingColor('blue')" style="background: blue; color: white;">Blue</button>
+                      <button onclick="setDrawingColor('green')" style="background: green; color: white;">Green</button>
+                      <button onclick="setDrawingColor('yellow')" style="background: yellow;">Yellow</button>
+                      <button onclick="setDrawingColor('purple')" style="background: purple; color: white;">Purple</button>
+                      <input type="color" id="customColor" onchange="setCustomColor(this.value)" title="Custom color">
+                      <button onclick="clearDrawing()" style="margin-left: auto;">Clear</button>
+                      <button onclick="saveDrawing()">Save Drawing</button>
+                    </div>
+                    <canvas id="drawingCanvas" style="border: 1px solid #ccc; touch-action: none; width: 100%; height: calc(100% - 40px);"></canvas>
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+};
+
+    // App names for taskbar
+    const appNames = {
+            email: "Email",
+browser: "Browser",
+      notepad: "Notepad",
+      fileeditor: "File Editor",
+      calculator: "Calculator",
+      terminal: "Terminal",
+      filemanager: "File Manager",
+      settings: "Settings",
+      music: "Music Player",
+      mediaviewer: "Media Viewer",
+      games: "Games",
+      todo: "To-Do List",
+      calendar: "Calendar",
+      drawing: "Drawing App"
+    };
+
+    // Drawing App Variables
+    let currentColor = 'black';
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Drawing App Functions
+    function initializeDrawingApp() {
+      const canvas = document.getElementById('drawingCanvas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size to match display size
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 2; // Account for border
+        canvas.height = rect.height - 42; // Account for header and buttons
+        redrawSavedDrawing();
+      }
+      
+      // Mouse/touch events
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseout', stopDrawing);
+      
+      // Touch support
+      canvas.addEventListener('touchstart', handleTouchStart);
+      canvas.addEventListener('touchmove', handleTouchMove);
+      canvas.addEventListener('touchend', stopDrawing);
+      
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+      
+      function startDrawing(e) {
+        isDrawing = true;
+        const pos = getPosition(e);
+        [lastX, lastY] = [pos.x, pos.y];
+      }
+      
+      function draw(e) {
+        if (!isDrawing) return;
+        const pos = getPosition(e);
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        
+        [lastX, lastY] = [pos.x, pos.y];
+      }
+      
+      function stopDrawing() {
+        isDrawing = false;
+        saveCurrentDrawing();
+      }
+      
+      function handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousedown', {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        });
+        canvas.dispatchEvent(mouseEvent);
+      }
+      
+      function handleTouchMove(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousemove', {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        });
+        canvas.dispatchEvent(mouseEvent);
+      }
+      
+      function getPosition(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX || e.touches[0].clientX) - rect.left,
+          y: (e.clientY || e.touches[0].clientY) - rect.top
+        };
+      }
+    }
+
+    function setDrawingColor(color) {
+      currentColor = color;
+    }
+
+    function setCustomColor(color) {
+      currentColor = color;
+    }
+
+    function clearDrawing() {
+      const canvas = document.getElementById('drawingCanvas');
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      localStorage.removeItem('savedDrawing');
+    }
+
+    function saveCurrentDrawing() {
+      const canvas = document.getElementById('drawingCanvas');
+      if (!canvas) return;
+      
+      const dataURL = canvas.toDataURL('image/png');
+      localStorage.setItem('savedDrawing', dataURL);
+    }
+
+    function saveDrawing() {
+      saveCurrentDrawing();
+      alert('Drawing saved! It will be restored when you reopen the app.');
+    }
+
+    function redrawSavedDrawing() {
+      const canvas = document.getElementById('drawingCanvas');
+      if (!canvas) return;
+      
+      const savedDrawing = localStorage.getItem('savedDrawing');
+      if (savedDrawing) {
+        const img = new Image();
+        img.onload = function() {
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = savedDrawing;
+      }
+    }
+
+    // To-Do List Functions
+    function loadTasks() {
+      const tasks = JSON.parse(localStorage.getItem('todoTasks') || '[]');
+      const taskList = document.getElementById('taskList');
+      if (!taskList) return;
+      
+      taskList.innerHTML = '';
+      tasks.forEach((task, index) => {
+        const li = document.createElement('li');
+        li.style.padding = '5px';
+        li.style.borderBottom = '1px solid #ddd';
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.innerHTML = `
+          <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                 onchange="toggleTask(${index})" style="margin-right:10px;">
+          <span style="flex:1; ${task.completed ? 'text-decoration:line-through;color:#999;' : ''}">
+            ${task.text}
+          </span>
+          <button onclick="removeTask(${index})" style="color:red;">✕</button>
+        `;
+        taskList.appendChild(li);
+      });
+    }
+
+    function addTask() {
+      const input = document.getElementById('newTask');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      const tasks = JSON.parse(localStorage.getItem('todoTasks') || '[]');
+      tasks.push({ text, completed: false });
+      localStorage.setItem('todoTasks', JSON.stringify(tasks));
+      
+      input.value = '';
+      loadTasks();
+    }
+
+    function toggleTask(index) {
+      const tasks = JSON.parse(localStorage.getItem('todoTasks') || '[]');
+      if (index >= 0 && index < tasks.length) {
+        tasks[index].completed = !tasks[index].completed;
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        loadTasks();
+      }
+    }
+
+    function removeTask(index) {
+      const tasks = JSON.parse(localStorage.getItem('todoTasks') || '[]');
+      if (index >= 0 && index < tasks.length) {
+        tasks.splice(index, 1);
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        loadTasks();
+      }
+    }
+
+    // Calendar Functions
+    let currentDate = new Date();
+
+    function renderCalendar() {
+      const monthNames = ["January", "February", "March", "April", "May", "June",
+                         "July", "August", "September", "October", "November", "December"];
+      
+      document.getElementById('currentMonth').textContent = 
+        `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+      
+      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      
+      const grid = document.getElementById('calendarGrid');
+      if (!grid) return;
+      
+      grid.innerHTML = '';
+      
+      // Day headers
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      days.forEach(day => {
+        const cell = document.createElement('div');
+        cell.textContent = day;
+        cell.style.textAlign = 'center';
+        cell.style.fontWeight = 'bold';
+        cell.style.padding = '5px';
+        grid.appendChild(cell);
+      });
+      
+      // Empty cells before first day
+      for (let i = 0; i < firstDay.getDay(); i++) {
+        const cell = document.createElement('div');
+        grid.appendChild(cell);
+      }
+      
+      // Days of the month
+      for (let day = 1; day <= lastDay.getDate(); day++) {
+        const cell = document.createElement('div');
+        cell.textContent = day;
+        cell.style.textAlign = 'center';
+        cell.style.padding = '5px';
+        cell.style.borderRadius = '3px';
+        
+        // Highlight current day
+        const today = new Date();
+        if (day === today.getDate() && 
+            currentDate.getMonth() === today.getMonth() && 
+            currentDate.getFullYear() === today.getFullYear()) {
+          cell.style.backgroundColor = '#0078D7';
+          cell.style.color = 'white';
+        }
+        
+        grid.appendChild(cell);
+      }
+      
+      renderEvents();
+    }
+
+    function changeMonth(offset) {
+      currentDate.setMonth(currentDate.getMonth() + offset);
+      renderCalendar();
+    }
+
+    function renderEvents() {
+      const events = JSON.parse(localStorage.getItem('calendarEvents') || '{}');
+      const eventsContainer = document.getElementById('calendarEvents');
+      if (!eventsContainer) return;
+      
+      eventsContainer.innerHTML = '<h4>Events</h4>';
+      
+      const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
+      const monthEvents = events[monthKey] || [];
+      
+      if (monthEvents.length === 0) {
+        eventsContainer.innerHTML += '<p>No events this month</p>';
+      } else {
+        monthEvents.forEach((event, index) => {
+          const eventDiv = document.createElement('div');
+          eventDiv.style.padding = '5px';
+          eventDiv.style.margin = '5px 0';
+          eventDiv.style.backgroundColor = '#f0f0f0';
+          eventDiv.style.borderRadius = '3px';
+          eventDiv.innerHTML = `
+            <strong>${event.day}</strong>: ${event.text}
+            <button onclick="removeEvent('${monthKey}', ${index})" style="float:right;">✕</button>
+          `;
+          eventsContainer.appendChild(eventDiv);
+        });
+      }
+      
+      // Add event form
+      const form = document.createElement('div');
+      form.style.marginTop = '10px';
+      form.innerHTML = `
+        <div style="display:flex;gap:5px;">
+          <input type="number" id="eventDay" placeholder="Day" min="1" max="31" style="width:50px;">
+          <input type="text" id="eventText" placeholder="Event description" style="flex:1;">
+          <button onclick="addEvent()">Add</button>
+        </div>
+      `;
+      eventsContainer.appendChild(form);
+    }
+
+    function addEvent() {
+      const dayInput = document.getElementById('eventDay');
+      const textInput = document.getElementById('eventText');
+      const day = parseInt(dayInput.value);
+      const text = textInput.value.trim();
+      
+      if (!day || day < 1 || day > 31 || !text) return;
+      
+      const events = JSON.parse(localStorage.getItem('calendarEvents') || '{}');
+      const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
+      
+      if (!events[monthKey]) {
+        events[monthKey] = [];
+      }
+      
+      events[monthKey].push({ day, text });
+      localStorage.setItem('calendarEvents', JSON.stringify(events));
+      
+      dayInput.value = '';
+      textInput.value = '';
+      renderEvents();
+    }
+
+    function removeEvent(monthKey, index) {
+      const events = JSON.parse(localStorage.getItem('calendarEvents') || '{}');
+      if (events[monthKey] && events[monthKey][index]) {
+        events[monthKey].splice(index, 1);
+        localStorage.setItem('calendarEvents', JSON.stringify(events));
+        renderEvents();
+      }
+    }
+
+    function changeBackground(colorName) {
+      const color = backgroundColors[colorName];
+      if (color) {
+        document.getElementById('desktop').style.background = color;
+        localStorage.setItem('background-color', color);
+      }
+    }
+    
+    function openApp(id) {
+      if (!document.getElementById(id)) {
+        document.body.insertAdjacentHTML("beforeend", apps[id]);
+        const app = document.getElementById(id);
+        app.style.left = '50%';
+        app.style.top = '50%';
+        app.style.transform = 'translate(-50%, -50%)';
+        
+        // Load saved content for specific apps
+        if (id === 'notepad') {
+          const savedNote = localStorage.getItem("notepadNote");
+          if (savedNote) {
+            document.getElementById("noteArea").value = savedNote;
+          }
+        }
+        if (id === 'filemanager') {
+          updateFileList();
+        }
+        if (id === 'settings') {
+          const savedVolume = localStorage.getItem('volume');
+          if (savedVolume) {
+            document.getElementById('volumeRange').value = savedVolume;
+          }
+        }
+        if (id === 'browser') {
+          setTimeout(() => {
+            document.getElementById("urlInput").value = "https://www.google.com";
+            loadBrowserPage();
+          }, 50);
+        }
+        if (id === 'todo') {
+          loadTasks();
+        }
+        if (id === 'calendar') {
+          currentDate = new Date(); // Reset to current date
+          renderCalendar();
+        }
+        if (id === 'drawing') {
+          setTimeout(initializeDrawingApp, 50);
+        }
+      }
+      const app = document.getElementById(id);
+      app.style.display = "flex";
+      
+      // Add to open apps and update taskbar
+      if (!openApps.has(id)) {
+        openApps.add(id);
+        updateTaskbar();
+      }
+      
+      // Bring window to front
+      bringToFront(app);
+    }
+
+    function closeApp(id) {
+      const app = document.getElementById(id);
+      if (app) app.style.display = "none";
+      
+      // Remove from open apps and update taskbar
+      if (openApps.has(id)) {
+        openApps.delete(id);
+        updateTaskbar();
+      }
+    }
+
+    // Update taskbar with open apps
+    function updateTaskbar() {
+      taskbarApps.innerHTML = '';
+      openApps.forEach(appId => {
+        const appElement = document.createElement('div');
+        appElement.className = 'taskbar-app';
+        appElement.textContent = appNames[appId];
+        appElement.onclick = () => {
+          const appWindow = document.getElementById(appId);
+          if (appWindow.style.display === 'none') {
+            appWindow.style.display = 'flex';
+            bringToFront(appWindow);
+          } else {
+            appWindow.style.display = 'none';
+          }
+        };
+        taskbarApps.appendChild(appElement);
+      });
+    }
+
+    // Bring window to front
+    function bringToFront(element) {
+      // Reset z-index of all windows
+      document.querySelectorAll('.window').forEach(win => {
+        win.style.zIndex = '10';
+      });
+      // Set this window to highest z-index
+      element.style.zIndex = '100';
+    }
+
+    function dragWindow(e, el) {
+      if (e.target !== e.currentTarget) return;
+      
+      e.preventDefault();
+      let offsetX = e.clientX - el.getBoundingClientRect().left;
+      let offsetY = e.clientY - el.getBoundingClientRect().top;
+      
+      function moveAt(e) {
+        el.style.left = e.clientX - offsetX + 'px';
+        el.style.top = e.clientY - offsetY + 'px';
+        el.style.transform = 'none';
+      }
+      
+      document.onmousemove = moveAt;
+      document.onmouseup = () => {
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      
+      function touchMove(e) {
+        const touch = e.touches[0] || e.changedTouches[0];
+        el.style.left = touch.clientX - offsetX + 'px';
+        el.style.top = touch.clientY - offsetY + 'px';
+        el.style.transform = 'none';
+      }
+      
+      function touchEnd() {
+        document.removeEventListener('touchmove', touchMove);
+        document.removeEventListener('touchend', touchEnd);
+      }
+      
+      document.addEventListener('touchmove', touchMove);
+      document.addEventListener('touchend', touchEnd);
+      
+      // Bring window to front when dragging
+      bringToFront(el);
+    }
+
+    // Enhanced browser functions
+    function loadBrowserPage() {
+      let url = document.getElementById("urlInput").value.trim();
+      const frame = document.getElementById("browserFrame");
+      const status = document.getElementById("browserStatus");
+      
+      if (!url) return;
+      
+      // Add https:// if missing
+      if (!url.startsWith("http")) {
+        url = "https://" + url;
+        document.getElementById("urlInput").value = url;
+      }
+      
+      try {
+        status.textContent = "Loading...";
+        frame.src = url;
+        
+        frame.onload = function() {
+          document.getElementById("urlInput").value = this.contentWindow.location.href;
+          status.textContent = `Loaded: ${new URL(this.contentWindow.location.href).hostname}`;
+        };
+        frame.onerror = () => status.textContent = "Failed to load (site may block iframes)";
+      } catch (e) {
+        status.textContent = `Error: ${e.message}`;
+      }
+    }
+
+    function openInNewTab() {
+      const url = document.getElementById("urlInput").value.trim();
+      if (url) {
+        window.open(url.startsWith("http") ? url : "https://" + url, '_blank');
+      }
+    }
+
+    function goBack() {
+      const frame = document.getElementById("browserFrame");
+      try {
+        frame.contentWindow.history.back();
+      } catch (e) {
+        document.getElementById("browserStatus").textContent = "Cannot go back";
+      }
+    }
+
+    function goForward() {
+      const frame = document.getElementById("browserFrame");
+      try {
+        frame.contentWindow.history.forward();
+      } catch (e) {
+        document.getElementById("browserStatus").textContent = "Cannot go forward";
+      }
+    }
+
+    function refreshPage() {
+      const frame = document.getElementById("browserFrame");
+      try {
+        frame.contentWindow.location.reload();
+      } catch (e) {
+        document.getElementById("browserStatus").textContent = "Cannot refresh";
+      }
+    }
+    
+    function saveNote() {
+      const note = document.getElementById("noteArea").value;
+      localStorage.setItem("notepadNote", note);
+      alert("Note saved successfully!");
+    }
+    
+    function saveFile() {
+      const name = document.getElementById("fileEditName").value.trim();
+      const content = document.getElementById("fileEditArea").value;
+      
+      if (!name) {
+        alert("Please enter a filename!");
+        return;
+      }
+      
+      const fileKey = `file_${name}`;
+      localStorage.setItem(fileKey, content);
+      alert(`File "${name}" saved successfully!`);
+      updateFileList();
+    }
+    
+    function updateFileList() {
+      const fileListElement = document.getElementById('fileList');
+      if (!fileListElement) return;
+      
+      fileListElement.innerHTML = '<h3>Saved Files</h3><ul id="savedFilesList"></ul>';
+      const savedFilesList = document.getElementById('savedFilesList');
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('file_')) {
+          const fileName = key.substring(5);
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <span>${fileName}</span>
+            <div>
+              <button onclick="openFileInEditor('${key}')">Open</button>
+              <button onclick="deleteFile('${key}', '${fileName}')">Delete</button>
+            </div>
+          `;
+          savedFilesList.appendChild(li);
+        }
+      }
+    }
+    
+    function openFileInEditor(key) {
+      const content = localStorage.getItem(key);
+      const fileName = key.substring(5);
+      
+      if (!document.getElementById('fileeditor')) {
+        openApp('fileeditor');
+        // Small delay to ensure the editor is fully loaded
+        setTimeout(() => {
+          document.getElementById('fileEditName').value = fileName;
+          document.getElementById('fileEditArea').value = content;
+        }, 50);
+      } else {
+        document.getElementById('fileEditName').value = fileName;
+        document.getElementById('fileEditArea').value = content;
+      }
+    }
+    
+    function deleteFile(key, fileName) {
+      if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
+        localStorage.removeItem(key);
+        updateFileList();
+        alert(`File "${fileName}" has been deleted.`);
+      }
+    }
+    
+    function playSelectedMusic(event) {
+      const file = event.target.files[0];
+      const audio = document.getElementById("musicPlayer");
+      if (file) audio.src = URL.createObjectURL(file);
+    }
+    
+    function previewMedia(event) {
+      const files = event.target.files;
+      const imageContainer = document.getElementById('imagePreview');
+      const videoContainer = document.getElementById('videoPreview');
+      imageContainer.innerHTML = '';
+      videoContainer.innerHTML = '';
+      Array.from(files).forEach(file => {
+        const url = URL.createObjectURL(file);
+        if (file.type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = url;
+          imageContainer.appendChild(img);
+        } else if (file.type.startsWith('video/')) {
+          const video = document.createElement('video');
+          video.src = url;
+          video.controls = true;
+          video.width = 200;
+          videoContainer.appendChild(video);
+        }
+      });
+    }
+    
+    function setVolume(val) {
+      localStorage.setItem('volume', val);
+    }
+    
+    function playTestSound() {
+      const audio = new Audio('https://www.soundjay.com/button/beep-07.wav');
+      audio.volume = parseFloat(localStorage.getItem('volume') || '0.5');
+      audio.play();
+    }
+
+    // Initialize file manager if opened on load
+    if (window.location.hash === '#filemanager') {
+      openApp('filemanager');
+    }
+     
+    function handleTerminalCommand(e) {
+  if (e.key === 'Enter') {
+    const input = document.getElementById('terminal-input');
+    const output = document.getElementById('terminal-output');
+    const command = input.value.trim();
+    output.innerHTML += `\n> ${command}`;
+
+    if (command.startsWith("/openapp ")) {
+      const appId = command.split(" ")[1];
+      if (apps[appId]) {
+        output.innerHTML += `\nOpening app "${appId}"...`;
+        openApp(appId);
+      } else {
+        output.innerHTML += `\nError: App "${appId}" not found.`;
+      }
+
+    } else if (command.startsWith("/closeapp ")) {
+      const appId = command.split(" ")[1];
+      const appElement = document.getElementById(appId);
+      if (appElement) {
+        appElement.style.display = "none";
+        output.innerHTML += `\nClosed app "${appId}".`;
+      } else {
+        output.innerHTML += `\nError: App "${appId}" not open or doesn't exist.`;
+      }
+
+    } else if (command === "/logout") {
+      output.innerHTML += `\nLogging out...`;
+      setTimeout(() => logout(), 500);
+
+    } else if (command === "/help") {
+      output.innerHTML += `\nAvailable commands:
+  /openapp [app-id]   → Open an app (e.g., notepad)
+  /closeapp [app-id]  → Close an app (if open)
+  /setbg [color]      → Set desktop background color
+  /resetbg            → Reset desktop background to default
+  /logout             → Log out of the Web OS
+  /help               → Show this help message`;
+
+    } else if (command.startsWith("/setbg ")) {
+      const color = command.split(" ")[1].toLowerCase();
+      const validColors = {
+        red: "#ff6b6b",
+        green: "#51cf66",
+        blue: "#339af0",
+        white: "#ffffff",
+        yellow: "#ffd43b",
+        grey: "#868e96",
+        gray: "#868e96",
+        purple: "#9c36b5"
+      };
+
+      if (validColors[color]) {
+        const hex = validColors[color];
+        document.getElementById("desktop").style.background = hex;
+        localStorage.setItem("background-color", hex);
+        output.innerHTML += `\nBackground changed to ${color}.`;
+      } else {
+        output.innerHTML += `\nInvalid color "${color}". Available: red, green, blue, white, yellow, grey, purple.`;
+      }
+
+    } else if (command === "/resetbg") {
+      const defaultColor = "#87ceeb"; // Default background
+      document.getElementById("desktop").style.background = defaultColor;
+      localStorage.removeItem("background-color");
+      output.innerHTML += `\nBackground reset to default.`;
+
+    } else {
+      output.innerHTML += `\nUnknown command. Type /help for a list of commands.`;
+    }
+
+    input.value = '';
+    output.scrollTop = output.scrollHeight;
+  }
+}
+  </script>
+
+
+<!-- FIXED Email App Script -->
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<script>
+(function(){
+  try { emailjs.init("VqHGYEFgo8X-lon9u"); } catch(e) { console.warn("EmailJS init failed", e); }
+})();
+
+class useEmailJS {
+  static serviceId = "service_60eqoqg";
+  static templateId = "template_yleks9j";
+  static publicKey = "VqHGYEFgo8X-lon9u";
+  static async send(to, subject, message, from_name) {
+    if (!to || !subject || !message) return { status: "error", error: "Missing fields" };
+    try {
+      const resp = await emailjs.send(this.serviceId, this.templateId, {
+        to_email: to, subject, message,
+        from_name: from_name || localStorage.getItem("username") || "WebOS User"
+      }, this.publicKey);
+      return { status: "success", response: resp };
+    } catch (err) {
+      return { status: "error", error: err.text || err.message };
+    }
+  }
+}
+
+// Global UI functions
+window.showCompose = function() {
+  document.getElementById('email-compose').style.display = 'flex';
+  document.getElementById('email-inbox').style.display = 'none';
+  document.getElementById('email-sent').style.display = 'none';
+  document.getElementById('email-drafts').style.display = 'none';
+};
+window.showInbox = function() {
+  document.getElementById('email-compose').style.display = 'none';
+  document.getElementById('email-inbox').style.display = 'block';
+  document.getElementById('email-sent').style.display = 'none';
+  document.getElementById('email-drafts').style.display = 'none';
+  window.loadInbox();
+};
+window.showSent = function() {
+  document.getElementById('email-compose').style.display = 'none';
+  document.getElementById('email-inbox').style.display = 'none';
+  document.getElementById('email-sent').style.display = 'block';
+  document.getElementById('email-drafts').style.display = 'none';
+  window.loadSent();
+};
+
+window.saveDraft = function() {
+  const to = document.getElementById('emailTo').value.trim();
+  const subject = document.getElementById('emailSubject').value.trim();
+  const message = document.getElementById('emailMessage').value.trim();
+  const drafts = JSON.parse(localStorage.getItem('emailDrafts') || '[]');
+  drafts.unshift({ to, subject, message, date: new Date().toLocaleString() });
+  localStorage.setItem('emailDrafts', JSON.stringify(drafts));
+  alert("Draft saved!");
+};
+window.loadInbox = function() {
+  const list = document.getElementById('inboxList');
+  list.innerHTML = '<li style="padding:5px;color:#777;">No new emails</li>';
+};
+window.loadSent = function() {
+  const sent = JSON.parse(localStorage.getItem('sentEmails') || '[]');
+  const list = document.getElementById('sentList');
+  list.innerHTML = sent.length ? sent.map(m=>`<li>To: ${m.to} — ${m.subject}</li>`).join('') : '<li style="padding:5px;color:#777;">No sent emails</li>';
+};
+
+window.sendEmail = async function() {
+  const to = document.getElementById('emailTo').value.trim();
+  const subject = document.getElementById('emailSubject').value.trim();
+  const message = document.getElementById('emailMessage').value.trim();
+  const statusEl = document.getElementById('emailStatus');
+  if (!to || !subject || !message) return statusEl.textContent = "All fields required.";
+  statusEl.textContent = "Sending...";
+  const res = await useEmailJS.send(to, subject, message);
+  if (res.status === "success") {
+    statusEl.textContent = "Sent ✅";
+    const sent = JSON.parse(localStorage.getItem('sentEmails') || '[]');
+    sent.unshift({ to, subject, message, date: new Date().toLocaleString() });
+    localStorage.setItem('sentEmails', JSON.stringify(sent));
+  } else statusEl.textContent = "Failed ❌ " + res.error;
+};
+
+(function(){
+  const originalOpenApp = window.openApp;
+  window.openApp = function(id) {
+    originalOpenApp(id);
+    if (id === 'email') setTimeout(()=>window.showInbox(),100);
+  };
+})();
+</script>
+</body>
+
+</html>
