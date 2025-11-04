@@ -81,6 +81,7 @@ It recreates the experience of a desktop operating system directly inside your b
 2. Log in using one of the provided credentials.  
 3. Explore the desktop environment and launch apps from icons or the **Start** menu.  
 4. All progress is auto-saved!
+5. Or use the official site at (https://ideigeniale.github.io/WebOS/)
 
 ---
 
